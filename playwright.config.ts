@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test';
+export default defineConfig({testDir:'web/tests',timeout:30000,workers:2,use:{baseURL:'http://127.0.0.1:4178',viewport:{width:1100,height:800}},projects:[{name:'webkit',use:{browserName:'webkit'}},{name:'chromium',use:{browserName:'chromium'}}],webServer:{command:'python3 -m http.server 4178 --bind 127.0.0.1 --directory web/dist',url:'http://127.0.0.1:4178',reuseExistingServer:true}});

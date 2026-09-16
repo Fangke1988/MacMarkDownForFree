@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' mdasset: data: https: http:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'"><title>MarkDownEditor</title><link rel="stylesheet" href="app.css"></head>
+<body>
+<div id="notice" role="status" hidden></div>
+<nav id="format" aria-label="格式工具栏" hidden>
+<button data-action="bold" title="加粗 ⌘B"><b>B</b></button><button data-action="italic" title="斜体 ⌘I"><i>I</i></button>
+<button data-action="heading" title="标题">H</button><span class="divider"></span>
+<button data-action="link">链接</button><button data-action="image">图片</button><button data-action="table">表格</button><button data-action="code">代码</button><button data-action="math">公式</button><button data-action="mermaid">图表</button>
+<span class="divider"></span><button data-action="undo" title="撤销 ⌘Z">撤销</button><button data-action="redo" title="重做 ⇧⌘Z">重做</button>
+</nav>
+<nav id="table-tools" aria-label="表格工具" hidden><span>表格</span><button data-table="row+">加行</button><button data-table="row-">删行</button><button data-table="col+">加列</button><button data-table="col-">删列</button><button data-table="left">左对齐</button><button data-table="center">居中</button><button data-table="right">右对齐</button><button data-table="delete">删除表格</button></nav>
+<section id="find" hidden aria-label="查找替换"><input id="query" placeholder="查找文本" aria-label="查找文本"><input id="replacement" placeholder="替换为" aria-label="替换为"><button id="find-next">下一个</button><button id="replace-one">替换</button><button id="replace-all">全部替换</button><span id="find-count"></span><button id="find-close" aria-label="关闭查找">关闭</button></section>
+<main id="scroll"><article id="reading" class="document"></article><div id="visual" class="document" hidden></div><div id="source" hidden></div></main>
+<dialog id="insert-dialog"><form id="insert-form"><header><h2 id="dialog-title"></h2><button type="button" id="dialog-close" aria-label="关闭">关闭</button></header><div id="dialog-fields"></div><footer><button type="button" id="dialog-cancel">取消</button><button class="primary" type="submit">插入</button></footer></form></dialog>
+<script src="app.js"></script></body></html>

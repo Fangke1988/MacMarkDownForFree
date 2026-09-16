@@ -1,0 +1,12 @@
+node_modules/
+.build/
+web/dist/
+test-results/
+playwright-report/
+delivery/*.app/
+.DS_Store
+# Local verification output
+delivery/*.log
+delivery/native-webkit.pdf
+delivery/*-page-*.png
+delivery/MarkDownEditor-*.zip

@@ -1,0 +1,1 @@
+fe26a1c87027e6d08b028991df40322dc203b0954b092d1cd069311a01e60e3b  delivery/MarkDownEditor-1.0.0-macOS-arm64.zip
