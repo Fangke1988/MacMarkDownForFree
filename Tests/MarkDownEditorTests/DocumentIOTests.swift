@@ -12,6 +12,16 @@ final class DocumentIOTests: XCTestCase {
         let saved = try DocumentIO.save("# 标题\n\n修改\n", to: file, baseline: baseline)
         XCTAssertEqual(saved, Data("\u{feff}# 标题\r\n\r\n修改\r\n".utf8))
     }
+    func testPlainTextRoundTripPreservesBOMAndCRLF() throws {
+        let file = directory.appendingPathComponent("中文 日志.txt")
+        let original = Data("\u{feff}# 原样文字\r\n**正文**\r\n".utf8)
+        try original.write(to: file)
+        let (text, baseline) = try DocumentIO.read(file)
+        XCTAssertEqual(DocumentIO.encoded(text, matching: baseline), original)
+        let saved = try DocumentIO.save("# 原样文字\n**修改**\n", to: file, baseline: baseline)
+        XCTAssertEqual(saved, Data("\u{feff}# 原样文字\r\n**修改**\r\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: file), saved)
+    }
     func testExternalConflictNeverOverwrites() throws {
         let file = directory.appendingPathComponent("文档.md"), baseline = Data("original".utf8)
         try baseline.write(to: file); try Data("external".utf8).write(to: file)
@@ -41,7 +51,7 @@ final class DocumentIOTests: XCTestCase {
         XCTAssertThrowsError(try DocumentIO.resource("link/secret.png", document: doc, root: nil))
     }
     func testDirectoryFiltersHiddenFilesAndOtherFormats() throws {
-        for name in ["a.md", "中文.markdown", "image.png", ".hidden.md"] { try Data().write(to: directory.appendingPathComponent(name)) }
-        XCTAssertEqual(Set(FileEntry.children(directory).map(\.name)), ["a.md", "中文.markdown"])
+        for name in ["a.md", "中文.markdown", "日志.TXT", "image.png", ".hidden.md"] { try Data().write(to: directory.appendingPathComponent(name)) }
+        XCTAssertEqual(Set(FileEntry.children(directory).map(\.name)), ["a.md", "中文.markdown", "日志.TXT"])
     }
 }

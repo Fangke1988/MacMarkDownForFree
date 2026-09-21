@@ -5,12 +5,12 @@
 <key>CFBundleIdentifier</key><string>com.funk.markdowneditor</string>
 <key>CFBundleName</key><string>MarkDownEditor</string>
 <key>CFBundleDisplayName</key><string>MarkDownEditor</string>
-<key>CFBundleVersion</key><string>3</string>
+<key>CFBundleVersion</key><string>4</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundleShortVersionString</key><string>1.0.0</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
-<key>CFBundleDocumentTypes</key><array><dict><key>CFBundleTypeName</key><string>Markdown 文档</string><key>CFBundleTypeRole</key><string>Editor</string><key>LSHandlerRank</key><string>Alternate</string><key>CFBundleTypeExtensions</key><array><string>md</string><string>markdown</string></array></dict></array>
+<key>CFBundleDocumentTypes</key><array><dict><key>CFBundleTypeName</key><string>Markdown 文档</string><key>CFBundleTypeRole</key><string>Editor</string><key>LSHandlerRank</key><string>Alternate</string><key>CFBundleTypeExtensions</key><array><string>md</string><string>markdown</string></array></dict><dict><key>CFBundleTypeName</key><string>纯文本文档</string><key>CFBundleTypeRole</key><string>Editor</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>public.plain-text</string></array><key>CFBundleTypeExtensions</key><array><string>txt</string></array></dict></array>
 </dict></plist>

@@ -8,6 +8,7 @@ struct ContentView: View {
     @ObservedObject var workspace: TabWorkspace
     let isActive: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("wordWrap") private var wordWrap = true
     @State private var filter = ""
     @State private var searchResults: [FileEntry] = []
     @State private var collapsedHeadings = Set<String>()
@@ -26,7 +27,7 @@ struct ContentView: View {
                     if store.mode == "source" { Text("第 \(store.line) 行，\(store.column) 列") }
                     Spacer()
                     if store.composing { Text("输入中") } else { Text(store.status) }
-                    Text("Markdown").foregroundStyle(.tertiary)
+                    Text(store.isPlainText ? "TXT · UTF-8" : "Markdown").foregroundStyle(.tertiary)
                 }.font(.system(size: 11)).foregroundStyle(.secondary).padding(.horizontal, 18).frame(height: 28)
             }.frame(minWidth: 560, minHeight: 480)
         }
@@ -36,12 +37,18 @@ struct ContentView: View {
             if isActive {
             ToolbarItem(placement: .navigation) { Button { store.sidebar.toggle() } label: { Image(systemName: "sidebar.left") }.help("显示或隐藏侧栏") }
             ToolbarItem(placement: .principal) {
+                if store.isPlainText { Text("纯文本").font(.system(size: 12)).foregroundStyle(.secondary) }
+                else {
                 Picker("视图", selection: Binding(get: { store.mode }, set: { store.changeMode($0) })) {
                     Text("阅读").tag("reading"); Text("编辑").tag("visual"); Text("源码").tag("source")
                 }.pickerStyle(.segmented).frame(width: 210).disabled(store.composing)
+                }
             }
             ToolbarItemGroup(placement: .primaryAction) {
-                Menu { Button("图片…") { store.action("image") }; Button("表格…") { store.action("table") }; Button("链接…") { store.action("link") }; Divider(); Button("代码块…") { store.action("code") }; Button("Mermaid 图表…") { store.action("mermaid") }; Button("数学公式…") { store.action("math") } } label: { Image(systemName: "plus") }.help("插入内容")
+                if !store.isPlainText {
+                    Menu { Button("图片…") { store.action("image") }; Button("表格…") { store.action("table") }; Button("链接…") { store.action("link") }; Divider(); Button("代码块…") { store.action("code") }; Button("Mermaid 图表…") { store.action("mermaid") }; Button("数学公式…") { store.action("math") } } label: { Image(systemName: "plus") }.help("插入内容")
+                }
+                Button { store.action("find") } label: { Image(systemName: "magnifyingglass") }.help("查找与替换 ⌘F")
                 Menu {
                     ForEach([("system", "跟随系统"), ("light", "浅色"), ("dark", "深色")], id: \.0) { item in
                         Button { workspace.changeTheme(item.0) } label: { if store.theme == item.0 { Label(item.1, systemImage: "checkmark") } else { Text(item.1) } }
@@ -52,6 +59,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: colorScheme) { _ in store.call("setTheme", [store.effectiveTheme]) }
+        .onChange(of: wordWrap) { store.changeWordWrap($0) }
         .alert("无法完成操作", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("好", role: .cancel) { store.error = nil } } message: { Text(store.error ?? "") }
     }
 
@@ -81,7 +89,7 @@ struct ContentView: View {
                     LazyVStack(alignment: .leading, spacing: 2) {
                         if filter.isEmpty { ForEach(store.files) { entry in FileRow(entry: entry, store: store) } }
                         else { ForEach(searchResults) { entry in FileRow(entry: entry, store: store) } }
-                        if store.files.isEmpty { Text("这个文件夹还没有 Markdown 文档").font(.caption).foregroundStyle(.secondary).padding(16) }
+                        if store.files.isEmpty { Text("这个文件夹还没有 Markdown 或 TXT 文档").font(.caption).foregroundStyle(.secondary).padding(16) }
                         else if !filter.isEmpty && searchResults.isEmpty { Text("没有匹配的文件").font(.caption).foregroundStyle(.secondary).padding(16) }
                     }.padding(.horizontal, 8).padding(.bottom, 20)
                 }
@@ -138,7 +146,7 @@ struct ContentView: View {
             guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey], options: [.skipsHiddenFiles]) else { return matches }
             while let url = enumerator.nextObject() as? URL {
                 if (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true { enumerator.skipDescendants(); continue }
-                if ["md", "markdown"].contains(url.pathExtension.lowercased()) && url.lastPathComponent.localizedCaseInsensitiveContains(query) { matches.append(FileEntry(url: url, directory: false)) }
+                if DocumentIO.supportedExtensions.contains(url.pathExtension.lowercased()) && url.lastPathComponent.localizedCaseInsensitiveContains(query) { matches.append(FileEntry(url: url, directory: false)) }
             }
             return matches.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         }.value

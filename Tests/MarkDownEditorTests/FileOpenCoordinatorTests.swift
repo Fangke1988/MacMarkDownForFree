@@ -13,7 +13,7 @@ import AppKit
     }
 
     func testNativeFileEventDecodesMultipleURLs() throws {
-        let a = try document("中文 空格 A.md"), b = try document("中文 空格 B.md")
+        let a = try document("中文 空格 A.md"), b = try document("中文 空格 B.TXT")
         let workspace = TabWorkspace(), window = NSWindow()
         let router = FileOpenCoordinator.shared
         router.register(window, workspace: workspace) { XCTFail("Unexpected extra window") }
@@ -25,6 +25,8 @@ import AppKit
         event.setParam(files, forKeyword: keyDirectObject)
         FileOpenDelegate().handleOpenDocuments(event, reply: NSAppleEventDescriptor.null())
         XCTAssertEqual(workspace.documents.map(\.url), [a, b])
+        XCTAssertTrue(workspace.active.isPlainText)
+        XCTAssertEqual(workspace.active.mode, "source")
         XCTAssertEqual(workspace.active.folder, b.deletingLastPathComponent())
         XCTAssertTrue(router.pending.isEmpty)
     }

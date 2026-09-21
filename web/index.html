@@ -9,7 +9,14 @@
 <span class="divider"></span><button data-action="undo" title="撤销 ⌘Z">撤销</button><button data-action="redo" title="重做 ⇧⌘Z">重做</button>
 </nav>
 <nav id="table-tools" aria-label="表格工具" hidden><span>表格</span><button data-table="row+">加行</button><button data-table="row-">删行</button><button data-table="col+">加列</button><button data-table="col-">删列</button><button data-table="left">左对齐</button><button data-table="center">居中</button><button data-table="right">右对齐</button><button data-table="delete">删除表格</button></nav>
-<section id="find" hidden aria-label="查找替换"><input id="query" placeholder="查找文本" aria-label="查找文本"><input id="replacement" placeholder="替换为" aria-label="替换为"><button id="find-next">下一个</button><button id="replace-one">替换</button><button id="replace-all">全部替换</button><span id="find-count"></span><button id="find-close" aria-label="关闭查找">关闭</button></section>
+<section id="find" hidden aria-label="查找替换">
+<div class="find-row"><input id="query" placeholder="查找当前文件" aria-label="查找文本"><button id="find-previous" title="上一个 ⇧⌘G">上一个</button><button id="find-next" title="下一个 ⌘G">下一个</button><button id="find-all" title="列出当前文件中的全部匹配 ⇧⌘F">全文查找</button><label><input id="match-case" type="checkbox">区分大小写</label><button id="find-close" aria-label="关闭查找">关闭</button></div>
+<div class="find-row"><input id="replacement" placeholder="替换为（可留空）" aria-label="替换为"><button id="replace-one">替换</button><button id="replace-all">全部替换</button><span id="find-count" role="status" aria-live="polite"></span></div>
+</section>
 <main id="scroll"><article id="reading" class="document"></article><div id="visual" class="document" hidden></div><div id="source" hidden></div></main>
+<section id="find-results" hidden aria-label="全文查找结果">
+<header><button id="results-toggle" aria-expanded="true" aria-controls="results-body">▾ 查找结果</button><span id="results-count" role="status"></span><button id="results-clear">清空结果</button></header>
+<div id="results-body"><div id="results-empty">没有匹配结果</div><ol id="results-list" aria-label="匹配位置"></ol></div>
+</section>
 <dialog id="insert-dialog"><form id="insert-form"><header><h2 id="dialog-title"></h2><button type="button" id="dialog-close" aria-label="关闭">关闭</button></header><div id="dialog-fields"></div><footer><button type="button" id="dialog-cancel">取消</button><button class="primary" type="submit">插入</button></footer></form></dialog>
 <script src="app.js"></script></body></html>

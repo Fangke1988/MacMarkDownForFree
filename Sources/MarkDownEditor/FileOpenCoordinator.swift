@@ -92,7 +92,7 @@ import AppKit
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let files = ProcessInfo.processInfo.arguments.dropFirst().filter {
-            ["md", "markdown"].contains(URL(fileURLWithPath: $0).pathExtension.lowercased())
+            DocumentIO.supportedExtensions.contains(URL(fileURLWithPath: $0).pathExtension.lowercased())
         }.map { URL(fileURLWithPath: $0) }
         FileOpenCoordinator.shared.open(files)
     }

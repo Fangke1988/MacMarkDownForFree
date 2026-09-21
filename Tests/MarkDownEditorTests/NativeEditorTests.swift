@@ -11,6 +11,50 @@ import PDFKit
         for _ in 0..<200 { if predicate() { return }; try await Task.sleep(nanoseconds: 50_000_000) }
         XCTFail("Timed out waiting for native editor")
     }
+    func testPlainTextSearchReplaceSaveAndWrapInRealWebKit() async throws {
+        _ = NSApplication.shared
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("TXT 实测 " + UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("中文 文件.txt")
+        let original = Data("\u{feff}# 纯文本\r\n苹果 苹果\r\n**苹果**\r\n".utf8)
+        try original.write(to: file)
+        let store = DocumentStore(); store.open(file)
+        let coordinator = EditorWebView.Coordinator(store)
+        let config = WKWebViewConfiguration(); config.userContentController.add(coordinator, name: "editor")
+        let web = WKWebView(frame: NSRect(x: 0, y: 0, width: 900, height: 700), configuration: config)
+        let window = NSWindow(contentRect: web.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = web; window.orderFront(nil); store.web = web
+        let oldWrap = UserDefaults.standard.object(forKey: "wordWrap")
+        defer {
+            UserDefaults.standard.set(oldWrap, forKey: "wordWrap")
+            window.orderOut(nil); config.userContentController.removeScriptMessageHandler(forName: "editor"); Drafts.remove(store.token)
+        }
+        let webRoot = root.appendingPathComponent("web/dist")
+        web.loadFileURL(webRoot.appendingPathComponent("index.html"), allowingReadAccessTo: webRoot)
+        try await waitUntil { store.ready && store.words > 0 }
+        XCTAssertTrue(store.isPlainText); XCTAssertEqual(store.mode, "source"); XCTAssertTrue(store.headings.isEmpty)
+        XCTAssertEqual(try Data(contentsOf: file), original)
+        let count = try await js(web, "await window.EditorAPI.action('find');document.querySelector('#query').value='苹果';await window.EditorAPI.action('findAll');return document.querySelectorAll('#results-list li').length")
+        XCTAssertEqual(count as? Int, 3)
+        _ = try await js(web, "document.querySelector('#replacement').value='橘子';document.querySelector('#replace-all').click();return true")
+        try await waitUntil { store.text.contains("橘子") && !store.dirty }
+        XCTAssertEqual(try Data(contentsOf: file), Data("\u{feff}# 纯文本\r\n橘子 橘子\r\n**橘子**\r\n".utf8))
+        store.changeWordWrap(false)
+        let wrap = try await js(web, "return window.EditorAPI.snapshot().wordWrap")
+        XCTAssertEqual(wrap as? Bool, false); XCTAssertFalse(DocumentStore().wordWrap)
+        _ = try await js(web, "document.activeElement.blur();await window.EditorAPI.action('undo');return true")
+        try await waitUntil { store.text.contains("苹果") && !store.dirty }
+        XCTAssertEqual(try Data(contentsOf: file), original)
+        let countAfterUndo = try await js(web, "return document.querySelectorAll('#results-list li').length")
+        XCTAssertEqual(countAfterUndo as? Int, 3)
+        let pdf = try await PDFExporter.make(web)
+        let printed = try XCTUnwrap(PDFDocument(data: pdf))
+        XCTAssertTrue(printed.string?.precomposedStringWithCompatibilityMapping.contains("# 纯文本") == true, printed.string ?? "Missing PDF text")
+        XCTAssertTrue(printed.string?.contains("**苹果**") == true, printed.string ?? "Missing PDF text")
+        _ = try await js(web, "window.EditorAPI.finishPrint();return true")
+    }
     func testRealWebKitEditingSaveConflictAndPDF() async throws {
         _ = NSApplication.shared
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

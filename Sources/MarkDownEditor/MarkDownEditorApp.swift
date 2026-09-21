@@ -10,6 +10,7 @@ import SwiftUI
 }
 
 struct EditorCommands: Commands {
+    @AppStorage("wordWrap") private var wordWrap = true
     @FocusedValue(\.documentStore) private var store
     @FocusedValue(\.tabWorkspace) private var workspace
     @Environment(\.openWindow) private var openWindow
@@ -35,7 +36,11 @@ struct EditorCommands: Commands {
         }
         CommandGroup(after: .textEditing) {
             Button("查找与替换…") { store?.action("find") }.keyboardShortcut("f")
-            Button("插入链接…") { store?.action("link") }.keyboardShortcut("k")
+            Button("替换…") { store?.action("replace") }.keyboardShortcut("f", modifiers: [.command, .option])
+            Button("查找下一个") { store?.action("findNext") }.keyboardShortcut("g")
+            Button("查找上一个") { store?.action("findPrevious") }.keyboardShortcut("g", modifiers: [.command, .shift])
+            Button("全文查找并列出结果") { store?.action("findAll") }.keyboardShortcut("f", modifiers: [.command, .shift])
+            Button("插入链接…") { store?.action("link") }.keyboardShortcut("k").disabled(store?.isPlainText == true)
         }
         CommandMenu("视图") {
             Button("下一个标签页") { workspace?.selectAdjacent(1) }.keyboardShortcut("]", modifiers: [.command, .shift])
@@ -45,6 +50,8 @@ struct EditorCommands: Commands {
             Button("显示 / 隐藏侧栏") { store?.sidebar.toggle() }.keyboardShortcut("\\")
             Button("文件目录") { store?.sidebar = true; store?.sidebarTab = "files" }
             Button("章节大纲") { store?.sidebar = true; store?.sidebarTab = "outline" }
+            Divider()
+            Toggle("自动换行（TXT / 源码）", isOn: $wordWrap)
         }
     }
 }

@@ -17,6 +17,7 @@ struct Heading: Identifiable {
     @Published var folder: URL?
     @Published var mode = "reading"
     @Published var theme = UserDefaults.standard.string(forKey: "theme") ?? "system"
+    @Published var wordWrap = UserDefaults.standard.object(forKey: "wordWrap") as? Bool ?? true
     @Published var status = "本地文档"
     @Published var dirty = false
     @Published var error: String?
@@ -51,6 +52,7 @@ struct Heading: Identifiable {
     }
     deinit { poll?.invalidate() }
     var title: String { url?.lastPathComponent ?? "未命名文档" }
+    var isPlainText: Bool { url?.pathExtension.lowercased() == "txt" }
     var effectiveTheme: String {
         theme == "system" ? (NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? "dark" : "light") : theme
     }
@@ -58,12 +60,15 @@ struct Heading: Identifiable {
         guard ready, let data = try? JSONSerialization.data(withJSONObject: args), let json = String(data: data, encoding: .utf8) else { return }
         web?.evaluateJavaScript("void window.EditorAPI.\(method)(...\(json))", completionHandler: nil)
     }
-    func sendDocument() { revision = 0; call("load", [["text": text, "token": token, "mode": mode, "theme": effectiveTheme]]) }
+    func sendDocument() { revision = 0; call("load", [["text": text, "token": token, "mode": mode, "theme": effectiveTheme, "plainText": isPlainText, "wordWrap": wordWrap]]) }
     func changeMode(_ value: String) { if !exporting { call("setMode", [value]) } }
     func changeTheme(_ value: String) {
         theme = value; UserDefaults.standard.set(value, forKey: "theme"); call("setTheme", [effectiveTheme])
     }
     func action(_ value: String) { if !exporting { call("action", [value]) } }
+    func changeWordWrap(_ value: Bool) {
+        wordWrap = value; UserDefaults.standard.set(value, forKey: "wordWrap"); call("setWordWrap", [value])
+    }
 
     func receive(_ message: [String: Any]) {
         guard let type = message["type"] as? String else { return }
@@ -83,7 +88,7 @@ struct Heading: Identifiable {
             if let anchor = pendingAnchor, let h = headings.first(where: { $0.id == anchor }) { pendingAnchor = nil; call("jump", [h.line]) }
         case "activeHeading": activeLine = message["line"] as? Int ?? 0
         case "composition": composing = message["active"] as? Bool ?? false
-        case "save": _ = save()
+        case "save": _ = save(copy: message["copy"] as? Bool ?? false)
         case "chooseImage": chooseImage()
         case "importImage":
             if let encoded = message["data"] as? String, let data = Data(base64Encoded: encoded), let name = message["name"] as? String { importImage(data, name: name) }
@@ -114,17 +119,30 @@ struct Heading: Identifiable {
         var target = url
         if target == nil || copy {
             guard prompt else { persistDraft(); return false }
-            let panel = NSSavePanel(); panel.title = copy ? "保留本地副本" : "保存 Markdown 文档"
-            panel.nameFieldStringValue = copy ? (url?.deletingPathExtension().lastPathComponent ?? "文档") + "-本地副本.md" : title + (title.hasSuffix(".md") ? "" : ".md")
-            panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]; panel.directoryURL = folder ?? url?.deletingLastPathComponent()
+            let panel = NSSavePanel(); panel.title = copy ? "另存为" : "保存文档"
+            let ext = url?.pathExtension ?? "md"
+            panel.nameFieldStringValue = copy ? (url?.deletingPathExtension().lastPathComponent ?? "文档") + "-本地副本." + ext : (url?.lastPathComponent ?? title + ".md")
+            panel.allowedContentTypes = DocumentIO.supportedExtensions.compactMap { UTType(filenameExtension: $0) }; panel.directoryURL = folder ?? url?.deletingLastPathComponent()
+            panel.isExtensionHidden = false
+            let format = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 240, height: 28))
+            format.setAccessibilityLabel("文件格式")
+            format.addItems(withTitles: ["Markdown（.md）", "Markdown（.markdown）", "纯文本（.txt）"])
+            format.selectItem(at: DocumentIO.supportedExtensions.firstIndex(of: ext.lowercased()) ?? 0)
+            let formatAction = SaveFormatAction(panel: panel)
+            format.target = formatAction; format.action = #selector(SaveFormatAction.change(_:))
+            panel.accessoryView = format
+            defer { withExtendedLifetime(formatAction) {} }
             guard panel.runModal() == .OK, let destination = panel.url else { return false }; target = destination
             if copy && target == url { error = "请选择不同的文件名，避免覆盖发生冲突的磁盘版本。"; return false }
         }
         guard let target else { return false }
         if !dirty && !copy && target == url { return true }
         do {
+            let wasPlainText = isPlainText
             baseline = try DocumentIO.save(text, to: target, baseline: copy || url == nil ? nil : baseline)
-            url = target; dirty = false; conflict = false; status = "已保存"; Drafts.remove(token); addRecent(target); refreshFiles(); return true
+            url = target; dirty = false; conflict = false; status = "已保存"; Drafts.remove(token); addRecent(target); refreshFiles()
+            if wasPlainText != isPlainText { call("setDocumentType", [isPlainText]) }
+            return true
         } catch DocumentError.conflict { conflict = true; status = "磁盘版本冲突"; persistDraft(); return false }
         catch { self.error = error.localizedDescription; status = "保存失败 · 草稿已保留"; persistDraft(); return false }
     }
@@ -147,7 +165,7 @@ struct Heading: Identifiable {
     }
     func reset() { saveTask?.cancel(); token = UUID().uuidString; revision = 0; url = nil; baseline = nil; dirty = false; conflict = false; headings = []; text = "" }
     func chooseFile() {
-        let panel = NSOpenPanel(); panel.title = "打开 Markdown 文档"; panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText, UTType(filenameExtension: "markdown") ?? .plainText]; panel.canChooseDirectories = false; panel.allowsMultipleSelection = true
+        let panel = NSOpenPanel(); panel.title = "打开 Markdown / TXT 文档"; panel.allowedContentTypes = DocumentIO.supportedExtensions.compactMap { UTType(filenameExtension: $0) }; panel.canChooseDirectories = false; panel.allowsMultipleSelection = true
         if panel.runModal() == .OK { for value in panel.urls { open(value) } }
     }
     func chooseFolder() {
@@ -163,7 +181,7 @@ struct Heading: Identifiable {
         guard canLeave() else { return }
         do {
             let (content, bytes) = try DocumentIO.read(value)
-            reset(); url = value; text = content; baseline = bytes; mode = "reading"; status = "已载入"
+            reset(); url = value; text = content; baseline = bytes; mode = isPlainText ? "source" : "reading"; status = "已载入"
             if folder == nil || !value.path.hasPrefix(folder!.path + "/") { folder = value.deletingLastPathComponent() }
             addRecent(value); refreshFiles(); sendDocument()
         } catch { self.error = error.localizedDescription }
@@ -215,7 +233,7 @@ struct Heading: Identifiable {
         let parts = href.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
         do {
             let target = try DocumentIO.resource(String(parts[0]), document: url, root: folder)
-            if ["md", "markdown"].contains(target.pathExtension.lowercased()) {
+            if DocumentIO.supportedExtensions.contains(target.pathExtension.lowercased()) {
                 let destination: DocumentStore
                 if let workspace {
                     guard let opened = workspace.open(target) else { return }
@@ -243,5 +261,15 @@ struct Heading: Identifiable {
                 status = "PDF 已导出"
             } catch { self.error = error.localizedDescription; status = "PDF 导出失败" }
         }
+    }
+}
+
+@MainActor private final class SaveFormatAction: NSObject {
+    weak var panel: NSSavePanel?
+    init(panel: NSSavePanel) { self.panel = panel }
+    @objc func change(_ sender: NSPopUpButton) {
+        guard let panel else { return }
+        let name = (panel.nameFieldStringValue as NSString).deletingPathExtension
+        panel.nameFieldStringValue = name + "." + DocumentIO.supportedExtensions[sender.indexOfSelectedItem]
     }
 }

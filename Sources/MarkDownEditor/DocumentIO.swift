@@ -13,6 +13,8 @@ enum DocumentError: LocalizedError {
 }
 
 enum DocumentIO {
+    static let supportedExtensions = ["md", "markdown", "txt"]
+
     static func read(_ url: URL) throws -> (String, Data) {
         let data = try Data(contentsOf: url)
         guard let text = String(data: data, encoding: .utf8) else { throw DocumentError.notUTF8 }
@@ -102,7 +104,7 @@ struct FileEntry: Identifiable, Hashable {
             let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
             guard values?.isSymbolicLink != true else { return nil }
             let dir = values?.isDirectory == true
-            guard dir || ["md", "markdown"].contains(url.pathExtension.lowercased()) else { return nil }
+            guard dir || DocumentIO.supportedExtensions.contains(url.pathExtension.lowercased()) else { return nil }
             return FileEntry(url: url, directory: dir)
         }.sorted { $0.directory != $1.directory ? $0.directory : $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
